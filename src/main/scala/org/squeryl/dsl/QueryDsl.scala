@@ -454,7 +454,7 @@ trait QueryDsl
     private def _associate[T](o: T, m2m: ManyToMany[T,A]): A = {
       val aInst = m2m.assign(o)
       try {
-        thisTableOfA.insertOrUpdate(aInst)(kedA)
+        thisTableOfA.assocInsertOrUpdate(aInst)(kedA, outerQueryDsl)
       }
       catch {
         case e:SQLException =>
@@ -503,7 +503,7 @@ trait QueryDsl
         
         def associate(o: R, a: A): A  = {
           assign(o, a)
-          thisTableOfA.insertOrUpdate(a)(kedA)
+          thisTableOfA.assocInsertOrUpdate(a)(kedA, outerQueryDsl)
           a
         }
 
@@ -573,7 +573,7 @@ trait QueryDsl
         
         def associate(o: L, a: A): A = {
           assign(o, a)
-          thisTableOfA.insertOrUpdate(a)(kedA)
+          thisTableOfA.assocInsertOrUpdate(a)(kedA, outerQueryDsl)
           a
         }
 
@@ -674,7 +674,7 @@ trait QueryDsl
 
         def associate(m: M) = {
           assign(m)
-          rightTable.insertOrUpdate(m)(kedM)
+          rightTable.assocInsertOrUpdate(m)(kedM, outerQueryDsl)
         }
       }
     }
