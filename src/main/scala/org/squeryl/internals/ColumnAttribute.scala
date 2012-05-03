@@ -75,6 +75,6 @@ case class IsTransient() extends ColumnAttribute
         with AttributeValidOnNumericalColumn
         with AttributeValidOnNonNumericalColumn
 
-case object TriggerManaged extends ColumnAttribute
+case object DbManaged extends ColumnAttribute
         with AttributeValidOnNumericalColumn
         with AttributeValidOnNonNumericalColumn

@@ -510,7 +510,7 @@ class Schema(implicit val fieldMapper: FieldMapper) {
   
   protected def transient = IsTransient()
 
-  protected def triggerManaged = TriggerManaged
+  protected def dbManaged = DbManaged
 
   class ColGroupDeclaration(cols: Seq[FieldMetaData]) {
 
