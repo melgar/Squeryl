@@ -404,7 +404,7 @@ trait DatabaseAdapter {
 
       f.headOption foreach { _ =>
         sw.write(" returning ")
-        sw.write(f.map(fmd => quoteName(t.name + "." + fmd.columnName)).mkString("(", ", ", ")"));
+        sw.write(f.map(fmd => quoteName(t.name + "." + fmd.columnName)).mkString(", "));
       }
     }
   }
