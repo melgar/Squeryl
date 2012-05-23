@@ -114,14 +114,14 @@ class Table[T] private [squeryl] (n: String, c: Class[T], val schema: Schema, _p
 
 //  def insert(t: Query[T]) = org.squeryl.internals.Utils.throwError("not implemented")
 
-  def insert(e: Iterable[T]):Unit =
-    _batchedUpdateOrInsert(e, t => posoMetaData.fieldsMetaData.filter(fmd => !fmd.isAutoIncremented && fmd.isInsertable), true, false)
+  def insert[K](e: Iterable[T])(implicit ked: KeyedEntityDef[T,K], dsl: QueryDsl, toCanLookup: K => CanLookup): Iterable[T] =
+    _batchedUpdateOrInsert[K](e, t => posoMetaData.fieldsMetaData.filter(fmd => !fmd.isAutoIncremented && fmd.isInsertable), true, false)
 
   /**
    * isInsert if statement is insert otherwise update
    */
-  private def _batchedUpdateOrInsert(e: Iterable[T], fmdCallback: T => Iterable[FieldMetaData], isInsert: Boolean, checkOCC: Boolean):Unit = {
-
+  private def _batchedUpdateOrInsert[K](e: Iterable[T], fmdCallback: T => Iterable[FieldMetaData], isInsert: Boolean, checkOCC: Boolean)(implicit ked: KeyedEntityDef[T,K], dsl: QueryDsl, toCanLookup: K => CanLookup): Iterable[T] = {
+    
     val it = e.iterator
 
     if(it.hasNext) {
@@ -188,14 +188,22 @@ class Table[T] private [squeryl] (n: String, c: Class[T], val schema: Schema, _p
         st.close
       }
 
-      for(a <- forAfterUpdateOrInsert)
+      for (a <- forAfterUpdateOrInsert) yield {
+        val a0 =
+          if (posoMetaData.hasDbManagedFields) {
+            val r = lookup[K](ked.getId(a.asInstanceOf[T])) getOrElse (throw SquerylSQLException("Could not find record to refresh"))
+            r.asInstanceOf[AnyRef]
+          } else
+            a
         if(isInsert) {
-          _setPersisted(_callbacks.afterInsert(a).asInstanceOf[T])
+          val c =_callbacks.afterInsert(a0).asInstanceOf[T]
+          _setPersisted(c)
+          c
+        } else {
+          _callbacks.afterUpdate(a0).asInstanceOf[T]
         }
-        else
-          _callbacks.afterUpdate(a)
-
-    }
+      }
+    } else Nil
   }
 
   /**
@@ -203,23 +211,23 @@ class Table[T] private [squeryl] (n: String, c: Class[T], val schema: Schema, _p
    * @throws SquerylSQLException When a database error occurs or the update
    * does not result in 1 row
    */
-  def forceUpdate[K](o: T)(implicit ked: KeyedEntityDef[T,_]) =
-    _update(o, false, ked)
+  def forceUpdate[K](o: T)(implicit ked: KeyedEntityDef[T,K], dsl: QueryDsl, toCanLookup: K => CanLookup) =
+    _update(o, false)
 
   /**
    * @throws SquerylSQLException When a database error occurs or the update
    * does not result in 1 row
    */
-  def update(o: T)(implicit ked: KeyedEntityDef[T,_]):Unit =
-    _update(o, true, ked)
+  def update[K](o: T)(implicit ked: KeyedEntityDef[T,K], dsl: QueryDsl, toCanLookup: K => CanLookup):Unit =
+    _update[K](o, true)
 
-  def update(o: Iterable[T])(implicit ked: KeyedEntityDef[T,_]):Unit =
+  def update[K](o: Iterable[T])(implicit ked: KeyedEntityDef[T,K], dsl: QueryDsl, toCanLookup: K => CanLookup):Unit =
     _update(o, ked.isOptimistic)
 
-  def forceUpdate(o: Iterable[T])(implicit ked: KeyedEntityDef[T,_]):Unit =
+  def forceUpdate[K](o: Iterable[T])(implicit ked: KeyedEntityDef[T,K], dsl: QueryDsl, toCanLookup: K => CanLookup):Unit =
     _update(o, ked.isOptimistic)
 
-  private def _update(o: T, checkOCC: Boolean, ked: KeyedEntityDef[T,_]) = {
+  private def _update[K](o: T, checkOCC: Boolean)(implicit ked: KeyedEntityDef[T,K], dsl: QueryDsl, toCanLookup: K => CanLookup) = {
 
     val dba = Session.currentSession.databaseAdapter
     val sw = new StatementWriter(dba)
@@ -235,14 +243,28 @@ class Table[T] private [squeryl] (n: String, c: Class[T], val schema: Schema, _p
            "Object "+prefixedName + "(id=" + ked.getId(o) + ", occVersionNumber=" + version +
            ") has become stale, it cannot be updated under optimistic concurrency control")
       }
+      else if (checkOCC && posoMetaData.isPgOptimistic) {
+        throw new StaleUpdateException(
+          "Object "+prefixedName + "(id=" + o.asInstanceOf[KeyedEntity[_]].id + ", " +
+            posoMetaData.pgOptimisticDescr(o.asInstanceOf[AnyRef]) +
+            ") has become stale, it cannot be updated under optimistic concurrency control")
+      }
       else
         throw SquerylSQLException("failed to update.  Expected 1 row, got " + cnt)
     }
 
-    _callbacks.afterUpdate(o0.asInstanceOf[AnyRef])
+    // HACK Can't use RETURNING here due to PG JDBC bug (no update counts with RETURNING)
+
+    val result =
+      if (posoMetaData.hasDbManagedFields)
+        lookup(ked.getId(o0)) getOrElse (throw SquerylSQLException("Could not find record to refresh"))
+      else
+        o0
+
+    _callbacks.afterUpdate(result.asInstanceOf[AnyRef]).asInstanceOf[T]
   }
 
-  private def _update(e: Iterable[T], checkOCC: Boolean):Unit = {
+  private def _update[K](e: Iterable[T], checkOCC: Boolean)(implicit ked: KeyedEntityDef[T, K], dsl: QueryDsl, toCanLookup: K => CanLookup): Iterable[T] = {
 
     def buildFmds(t: T): Iterable[FieldMetaData] = {
       val pkList = posoMetaData.primaryKey.getOrElse(
@@ -266,11 +288,12 @@ class Table[T] private [squeryl] (n: String, c: Class[T], val schema: Schema, _p
       List(
         posoMetaData.fieldsMetaData.filter(fmd=> ! fmd.isIdFieldOfKeyedEntity && ! fmd.isOptimisticCounter && fmd.isUpdatable).toList,
         pkList,
-        posoMetaData.optimisticCounter.toList
+        posoMetaData.optimisticCounter.toList,
+        posoMetaData.pgOptimisticValues.toList
       ).flatten
     }
 
-    _batchedUpdateOrInsert(e, buildFmds _, false, checkOCC)
+    _batchedUpdateOrInsert[K](e, buildFmds _, false, checkOCC)
   }
 
   def update(s: T =>UpdateStatement):Int = {
@@ -343,9 +366,17 @@ class Table[T] private [squeryl] (n: String, c: Class[T], val schema: Schema, _p
    * @throws SquerylSQLException When a database error occurs or the operation
    * does not result in 1 row
    */
-  def insertOrUpdate(o: T)(implicit ked: KeyedEntityDef[T,_]): T = {
+  def insertOrUpdate[K](o: T)(implicit ked: KeyedEntityDef[T,K], dsl: QueryDsl, toCanLookup: K => CanLookup): T = {
     if(ked.isPersisted(o))
       update(o)
+    else
+      insert(o)
+    o
+  }
+
+  def assocInsertOrUpdate(o: T)(implicit ked: KeyedEntityDef[T,_], dsl: QueryDsl): T = {
+    if(ked.isPersisted(o))
+      update[Nothing](o)(ked.asInstanceOf[KeyedEntityDef[T,Nothing]], dsl, _ => UnknownCanLookup)
     else
       insert(o)
     o

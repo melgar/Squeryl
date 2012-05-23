@@ -629,8 +629,8 @@ class Schema(implicit val fieldMapper: FieldMapper) {
     /**
      * Same as {{{table.update(a)}}}
      */  
-    def update(implicit ked: KeyedEntityDef[A,_]) =
-      _performAction(_.update(a))
+    def update[K](implicit ked: KeyedEntityDef[A,K], toCanLookup: K => CanLookup) =
+      _performAction(_.update(a)(ked, queryDsl, toCanLookup))
       
   }
 

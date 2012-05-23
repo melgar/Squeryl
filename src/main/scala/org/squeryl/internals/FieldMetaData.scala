@@ -46,6 +46,7 @@ class FieldMetaData(
         field:  Option[Field],
         columnAnnotation: Option[Column],
         val isOptimisticCounter: Boolean,
+        val isPgOptimisticValue: Boolean,
         val sampleValue: Any) {
 
   def nativeJdbcType =
@@ -267,8 +268,7 @@ class FieldMetaData(
     !columnAttributes.exists(_.isInstanceOf[Unupdatable]) && !isDbManaged
 
   def isDbManaged =
-    columnAttributes.exists(_ == DbManaged)
-
+    columnAttributes.exists(_ == DbManaged) || isPgOptimisticValue
 
 
   /**
@@ -374,7 +374,7 @@ trait FieldMetaDataFactory {
 
   def hideFromYieldInspection(o: AnyRef, f: Field): Boolean = false
 
-  def build(parentMetaData: PosoMetaData[_], name: String, property: (Option[Field], Option[Method], Option[Method], Set[Annotation]), sampleInstance4OptionTypeDeduction: AnyRef, isOptimisticCounter: Boolean): FieldMetaData
+  def build(parentMetaData: PosoMetaData[_], name: String, property: (Option[Field], Option[Method], Option[Method], Set[Annotation]), sampleInstance4OptionTypeDeduction: AnyRef, isOptimisticCounter: Boolean, isPgOptimisticValue: Boolean): FieldMetaData
 
   def createPosoFactory(posoMetaData: PosoMetaData[_]): ()=>AnyRef
 }
@@ -391,7 +391,7 @@ object FieldMetaData {
         c._1.newInstance(c._2 :_*).asInstanceOf[AnyRef];
       }
 
-    def build(parentMetaData: PosoMetaData[_], name: String, property: (Option[Field], Option[Method], Option[Method], Set[Annotation]), sampleInstance4OptionTypeDeduction: AnyRef, isOptimisticCounter: Boolean) = {
+    def build(parentMetaData: PosoMetaData[_], name: String, property: (Option[Field], Option[Method], Option[Method], Set[Annotation]), sampleInstance4OptionTypeDeduction: AnyRef, isOptimisticCounter: Boolean, isPgOptimisticValue: Boolean) = {
 
       val fieldMapper = parentMetaData.schema.fieldMapper 
       
@@ -512,6 +512,7 @@ object FieldMetaData {
         field,
         colAnnotation,
         isOptimisticCounter,
+        isPgOptimisticValue,
         constructorSuppliedDefaultValue)
     }
   }

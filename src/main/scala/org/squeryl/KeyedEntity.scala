@@ -125,6 +125,13 @@ class SquerylSQLException(message: String, cause: Option[SQLException]) extends 
   override def getCause: SQLException = cause.orNull
 }
 
+trait PgOptimistic {
+  self: KeyedEntity[_] =>
+
+  protected val xmin: Int = 0
+  // protected val ctid: String = ""
+}
+
 class StaleUpdateException(message: String) extends RuntimeException(message)
 
 trait EntityMember {
