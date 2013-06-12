@@ -433,7 +433,7 @@ trait DatabaseAdapter {
 
   protected [squeryl] def writeReturningClause[T](t: Table[T], sw: StatementWriter) {
     if (supportsReturningClause) {
-      val f = t.posoMetaData.dbManagedFields.toList
+      val f = t.posoMetaData.refreshableFields.toList
 
       f.headOption foreach { _ =>
         sw.write(" returning ")

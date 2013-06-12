@@ -270,6 +270,7 @@ class FieldMetaData(
   def isDbManaged =
     columnAttributes.exists(_ == DbManaged) || isPgOptimisticValue
 
+  def isTriggerUpdated = columnAttributes.exists(_ == TriggerUpdated)
 
   /**
    *  gets the value of the field from the object.

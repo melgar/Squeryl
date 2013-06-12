@@ -512,6 +512,8 @@ class Schema(implicit val fieldMapper: FieldMapper) {
 
   protected def dbManaged = DbManaged
 
+  protected def triggerUpdated = TriggerUpdated
+
   class ColGroupDeclaration(cols: Seq[FieldMetaData]) {
 
     def are(columnAttributes: AttributeValidOnMultipleColumn*) =

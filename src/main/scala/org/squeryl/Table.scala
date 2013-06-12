@@ -30,8 +30,8 @@ class Table[T] private [squeryl] (n: String, c: Class[T], val schema: Schema, _p
 
   private def _dbAdapter = Session.currentSession.databaseAdapter
 
-  private def hasDbManagedFields: Boolean =
-    _dbAdapter.supportsReturningClause && posoMetaData.dbManagedFields.headOption.isDefined
+  private def hasRefreshableFields: Boolean =
+    _dbAdapter.supportsReturningClause && posoMetaData.hasRefreshableFields
 
   /**
    * @throws SquerylSQLException When a database error occurs or the insert
@@ -47,8 +47,8 @@ class Table[T] private [squeryl] (n: String, c: Class[T], val schema: Schema, _p
 
     val st =
       (_dbAdapter.supportsAutoIncrementInColumnDeclaration, posoMetaData.primaryKey) match {
-        case (true, a:Any) if ! hasDbManagedFields => sess.connection.prepareStatement(sw.statement, Statement.RETURN_GENERATED_KEYS)
-        case (false, Some(Left(pk:FieldMetaData))) if ! hasDbManagedFields => {
+        case (true, a:Any) if ! hasRefreshableFields => sess.connection.prepareStatement(sw.statement, Statement.RETURN_GENERATED_KEYS)
+        case (false, Some(Left(pk:FieldMetaData))) if ! hasRefreshableFields => {
           val autoIncPk = new Array[String](1)
           autoIncPk(0) = pk.columnName
           sess.connection.prepareStatement(sw.statement, autoIncPk)
@@ -60,13 +60,13 @@ class Table[T] private [squeryl] (n: String, c: Class[T], val schema: Schema, _p
       val executeResult = _dbAdapter.executeUpdateForInsert(sess, sw, st)
 
       if (executeResult) {
-        if (hasDbManagedFields) {
+        if (hasRefreshableFields) {
           val rs = st.getResultSet
           try {
             if (! rs.next())
                 internals.Utils.throwError("Expected data")
             for {
-              (fmd, index) <- posoMetaData.dbManagedFields.zipWithIndex
+              (fmd, index) <- posoMetaData.refreshableFields.zipWithIndex
             } {
               fmd.setFromResultSet(o, rs, index+1)
             }
@@ -82,7 +82,7 @@ class Table[T] private [squeryl] (n: String, c: Class[T], val schema: Schema, _p
       val cnt = st.getUpdateCount
 
       //if (cnt != 1)
-      if (cnt != 1 && ! hasDbManagedFields) // Work around PG JDBC bug
+      if (cnt != 1 && ! hasRefreshableFields) // Work around PG JDBC bug
         throw SquerylSQLException("failed to insert.  Expected 1 row, got " + cnt)
 
       posoMetaData.primaryKey match {
@@ -193,7 +193,7 @@ class Table[T] private [squeryl] (n: String, c: Class[T], val schema: Schema, _p
 
       for (a <- forAfterUpdateOrInsert) yield {
         val a0 =
-          if (posoMetaData.hasDbManagedFields) {
+          if (posoMetaData.hasRefreshableFields) {
             val r = refresh(a.asInstanceOf[T]) getOrElse (internals.Utils.throwError("could not find record to refresh"))
             r.asInstanceOf[AnyRef]
           } else
@@ -272,7 +272,7 @@ class Table[T] private [squeryl] (n: String, c: Class[T], val schema: Schema, _p
 
         // Can't use RETURNING here due to PG JDBC bug (no update counts with RETURNING)
 
-        if (posoMetaData.hasDbManagedFields)
+        if (posoMetaData.hasRefreshableFields)
           refresh(o0) getOrElse (internals.Utils.throwError("could not find record to refresh"))
         else
           o0

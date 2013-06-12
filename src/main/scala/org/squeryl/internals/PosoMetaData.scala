@@ -332,12 +332,17 @@ class PosoMetaData[T](val clasz: Class[T], val schema: Schema, val viewOrTable: 
       _fillWithMembers(c, members)
   }
 
+  def refreshableFields: Iterable[FieldMetaData] =
+    for {
+      m <- fieldsMetaData if m.isDbManaged || m.isTriggerUpdated
+    } yield m
+
   def dbManagedFields: Iterable[FieldMetaData] =
     for {
       m <- fieldsMetaData if m.isDbManaged
     } yield m
 
-  def hasDbManagedFields = ! dbManagedFields.isEmpty
+  def hasRefreshableFields = ! refreshableFields.isEmpty
 }
 
 
