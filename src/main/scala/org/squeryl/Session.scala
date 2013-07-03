@@ -58,6 +58,8 @@ class Session(val connection: Connection, val databaseAdapter: DatabaseAdapter, 
     _statements.clear
     _resultSets.foreach(rs => Utils.close(rs))
     _resultSets.clear
+
+    FieldReferenceLinker.clearThreadLocalState()
   }
 
   def close = {
