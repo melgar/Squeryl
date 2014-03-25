@@ -3,9 +3,9 @@ import Keys._
 //import ls.Plugin._
 
 object Resolvers {
-  val ccapRepo = "CCAP Repository" at "http://artifactory.ci.wicourts.gov/repo"
-  val ccapReleases = "CCAP Releases" at "http://artifactory.ci.wicourts.gov/libs-releases-local"
-  val ccapSnapshots = "CCAP Snapshots" at "http://artifactory.ci.wicourts.gov/libs-snapshots-local"
+  val ccapRepo = "CCAP Repository" at "http://repo.wicourts.gov/artifactory/scala"
+  val ccapReleases = "CCAP Releases" at "http://repo.wicourts.gov/artifactory/libs-release-local"
+  val ccapSnapshots = "CCAP Snapshots" at "http://repo.wicourts.gov/artifactory/libs-snapshot-local"
 }
 
 object SquerylBuild extends Build {
