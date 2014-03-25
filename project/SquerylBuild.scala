@@ -38,8 +38,8 @@ object SquerylBuild extends Build {
       publishMavenStyle := true,
       scalaVersion := "2.9.2",
       // crossScalaVersions := Seq("2.10.0", "2.9.2", "2.9.1", "2.9.0-1", "2.9.0"),
-      // crossScalaVersions := Seq("2.9.3"),
-      crossScalaVersions := Seq("2.10.0", "2.9.2", "2.9.3"),
+      crossScalaVersions := Seq("2.9.2", "2.10.2"),
+      // crossScalaVersions := Seq("2.10.0", "2.9.2", "2.9.3"),
       licenses := Seq("Apache 2" -> url("http://www.apache.org/licenses/LICENSE-2.0.txt")),
       homepage := Some(url("http://squeryl.org")),
       pomExtra := (<scm>
