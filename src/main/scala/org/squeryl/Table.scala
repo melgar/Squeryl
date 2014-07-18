@@ -63,7 +63,7 @@ class Table[T] private [squeryl] (n: String, c: Class[T], val schema: Schema, _p
           val rs = st.getResultSet
           try {
             if (! rs.next())
-              new SquerylSQLException("Expected data")
+              throw SquerylSQLException("Expected data")
             for {
               (fmd, index) <- posoMetaData.dbManagedFields.zipWithIndex
             } {
@@ -74,7 +74,7 @@ class Table[T] private [squeryl] (n: String, c: Class[T], val schema: Schema, _p
           }
           st.getMoreResults()
         } else {
-          new SquerylSQLException("Unexpected result set")
+          throw SquerylSQLException("Unexpected result set")
         }
       }
 
