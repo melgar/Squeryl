@@ -175,7 +175,14 @@ class FieldSelectElement
   val expression = new ExpressionNode {
     
     def doWrite(sw: StatementWriter) = {
-      sw.write(sw.quoteName(alias))
+      val quoted = sw.quoteName(alias)
+      sw.write(
+        fieldMetaData.explicitDbTypeDeclaration match {
+          case Some(dbType) if fieldMetaData.explicitDbTypeCast =>
+            s"cast($quoted as ${sw.quoteName(dbType)})"
+          case _ => quoted
+        }
+      )
       if (classOf[PgOptimistic].isAssignableFrom(origin.view.classOfT)
           && fieldMetaData.columnName == "ctid") {
         sw.write("::varchar")
