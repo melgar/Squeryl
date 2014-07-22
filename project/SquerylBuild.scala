@@ -2,6 +2,12 @@ import sbt._
 import Keys._
 //import ls.Plugin._
 
+object Resolvers {
+  val ccapRepo = "CCAP Repository" at "http://repo.wicourts.gov/artifactory/scala"
+  val ccapReleases = "CCAP Releases" at "http://repo.wicourts.gov/artifactory/libs-release-local"
+  val ccapSnapshots = "CCAP Snapshots" at "http://repo.wicourts.gov/artifactory/libs-snapshot-local"
+}
+
 object SquerylBuild extends Build {
 
   lazy val squeryl = Project(
@@ -9,9 +15,10 @@ object SquerylBuild extends Build {
     base = file("."),
     settings = Project.defaultSettings /* ++ lsSettings */ ++ Seq(
       description := "A Scala ORM and DSL for talking with Databases using minimum verbosity and maximum type safety",
-      organization := "org.squeryl",
-      version := "0.9.6-RC3",
+      organization := "gov.wicourts.org.squeryl",
+      version := "0.9.6-ccap09",
       javacOptions := Seq("-source", "1.6", "-target", "1.6"),
+      /*
   	  version <<= version { v => //only release *if* -Drelease=true is passed to JVM
   	  	val release = Option(System.getProperty("release")) == Some("true")
   	  	if(release)
@@ -26,6 +33,7 @@ object SquerylBuild extends Build {
   	  		v.substring(0,i) + "-" + (suffix getOrElse "SNAPSHOT")
   	  	}
   	  },
+      */
       parallelExecution := false,
       publishMavenStyle := true,
       scalaVersion := "2.11.1",
@@ -61,12 +69,16 @@ object SquerylBuild extends Build {
                      </developer>
                    </developers>),
       publishTo <<= version { v => //add credentials to ~/.sbt/sonatype.sbt
+        /*
         val nexus = "https://oss.sonatype.org/"
         if (v.trim.endsWith("SNAPSHOT"))
           Some("snapshots" at nexus + "content/repositories/snapshots")
         else
           Some("releases" at nexus + "service/local/staging/deploy/maven2")
+        */
+        Some(Resolvers.ccapReleases)
       },
+      credentials += Credentials(Path.userHome / ".ivy2" / ".credentials"),
       publishArtifact in Test := false,
       pomIncludeRepository := { _ => false },
       //below is for lsync, run "ls-write-version", commit to github, then run "lsync" 
