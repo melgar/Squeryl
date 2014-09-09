@@ -170,10 +170,16 @@ trait QueryDsl
     }
     finally {
       try {
-        if(txOk)
-          c.commit
-        else
-          c.rollback
+        try {
+          if(txOk)
+            c.commit
+          else
+            c.rollback
+        } finally {
+          if (originalAutoCommit != c.getAutoCommit) {
+            c.setAutoCommit(originalAutoCommit)
+          }
+        }
       }
       catch {
         case e:SQLException => {
@@ -181,14 +187,6 @@ trait QueryDsl
           if(txOk) throw e // if an exception occured b4 the commit/rollback we don't want to obscure the original exception 
         }
       }
-      try {
-        if (originalAutoCommit != c.getAutoCommit) {
-          c.setAutoCommit(originalAutoCommit)
-        }
-      } catch {
-        case e: SQLException => // ignore
-      }
-
       try {
         c.close
       } catch {
