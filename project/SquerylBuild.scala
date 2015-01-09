@@ -16,7 +16,7 @@ object SquerylBuild extends Build {
     settings = Project.defaultSettings /* ++ lsSettings */ ++ Seq(
       description := "A Scala ORM and DSL for talking with Databases using minimum verbosity and maximum type safety",
       organization := "gov.wicourts.org.squeryl",
-      version := "0.9.6-ccap09",
+      version := "0.9.6-ccap13",
       javacOptions := Seq("-source", "1.6", "-target", "1.6"),
       /*
   	  version <<= version { v => //only release *if* -Drelease=true is passed to JVM
@@ -36,8 +36,8 @@ object SquerylBuild extends Build {
       */
       parallelExecution := false,
       publishMavenStyle := true,
-      scalaVersion := "2.11.1",
-      crossScalaVersions := Seq("2.11.1", "2.10.3"),
+      scalaVersion := "2.11.2",
+      crossScalaVersions := Seq("2.11.2", "2.10.3"),
       scalacOptions <++= scalaVersion map { sv =>
         Seq("-unchecked", "-deprecation") ++ (
           if(sv.startsWith("2.11"))
