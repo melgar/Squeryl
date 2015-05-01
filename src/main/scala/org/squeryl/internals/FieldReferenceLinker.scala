@@ -24,6 +24,11 @@ import java.lang.reflect.{Field, Method}
 import org.squeryl._
 
 object FieldReferenceLinker {
+  private var _logger: Option[String => Unit] = None
+
+  def initLogger(f: String => Unit) = _logger = Some(f)
+
+  private def log(s: String): Unit = _logger.foreach(_(s))
 
   def clearThreadLocalState() {
     _yieldValues.remove()
@@ -74,15 +79,18 @@ object FieldReferenceLinker {
   
   private val __lastAccessedFieldReference = new ThreadLocal[Option[SelectElement]]
 
-  private [squeryl] def _lastAccessedFieldReference: Option[SelectElement] = {
+  private def _lastAccessedFieldReference: Option[SelectElement] = {
     val fr = __lastAccessedFieldReference.get
     if (fr == null) None else fr
   }
 
-  private [squeryl] def _lastAccessedFieldReference_=(se: Option[SelectElement]) =
+  private def _lastAccessedFieldReference_=(se: Option[SelectElement]) =
     if (se == None) {
       __lastAccessedFieldReference.remove()
     } else {
+      if (_lastAccessedFieldReference.isDefined && _lastAccessedFieldReference != se) {
+        log(s"Last accessed field referenced was already set. This is a bug in your query. (${_lastAccessedFieldReference})")
+      }
       __lastAccessedFieldReference.set(se)
     }
   
@@ -98,6 +106,7 @@ object FieldReferenceLinker {
   def executeAndRestoreLastAccessedFieldReference[A](expressionWithSideEffectsASTConstructionThreadLocalState: =>A): A = {
     // if we are currently building an AST, we must save the (last) _lastAccessedFieldReference
     val prev = FieldReferenceLinker._lastAccessedFieldReference
+    _lastAccessedFieldReference = None
     val a = expressionWithSideEffectsASTConstructionThreadLocalState
     // and restore it to the previous state (issue19)
     FieldReferenceLinker._lastAccessedFieldReference = prev
@@ -208,6 +217,7 @@ object FieldReferenceLinker {
       yi.turnOn(q, rsm)
 
       val prev = _lastAccessedFieldReference
+      _lastAccessedFieldReference = None
       val res0 =
         try {
           selectClosure()
