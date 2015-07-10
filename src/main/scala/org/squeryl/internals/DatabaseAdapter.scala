@@ -614,11 +614,14 @@ trait DatabaseAdapter {
           field => {
             sw.write(" and ")
             sw.write(quoteName(field.columnName))
-            if (field.columnName == "ctid") {
+            if (field.columnName == "ctid" || field.columnName == "xmin") {
               sw.write("::varchar")
             }
             sw.write(" = ")
             sw.write(writeValue(o_, field, sw))
+            if (field.columnName == "xmin") {
+              sw.write("::varchar")
+            }
           }
         )
       }
