@@ -128,7 +128,7 @@ class SquerylSQLException(message: String, cause: Option[SQLException]) extends 
 trait PgOptimistic {
   self: KeyedEntity[_] =>
 
-  protected [squeryl] val xmin: Int = 0
+  protected [squeryl] val xmin: Long = 0
   protected [squeryl] val ctid: String = ""
 
   def copyOccData[T <: KeyedEntity[_] with PgOptimistic](target: T)(implicit table: Table[T]) {
