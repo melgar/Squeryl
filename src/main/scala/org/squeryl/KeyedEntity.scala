@@ -115,7 +115,7 @@ trait Optimistic {
 trait PgOptimistic {
   self: KeyedEntity[_] =>
 
-  protected [squeryl] val xmin: Long = 0
+  protected [squeryl] val xmin: String = ""
   protected [squeryl] val ctid: String = ""
 
   def copyOccData[T <: KeyedEntity[_] with PgOptimistic](target: T)(implicit table: Table[T]) {

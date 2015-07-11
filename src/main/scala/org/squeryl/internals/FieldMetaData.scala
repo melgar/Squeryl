@@ -145,7 +145,7 @@ class FieldMetaData(
    */
   def explicitDbTypeDeclaration: Option[String] = {
     val dbt = _columnAttributes.find(_.isInstanceOf[DBType])
-    if(columnName == "ctid")
+    if(columnName == "ctid" || columnName == "xmin")
       Some("varchar")
     else if(dbt == None)
       None
