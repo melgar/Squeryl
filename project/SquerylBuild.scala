@@ -3,9 +3,9 @@ import Keys._
 //import ls.Plugin._
 
 object Resolvers {
-  val ccapRepo = "CCAP Repository" at "http://repo.wicourts.gov/artifactory/scala"
-  val ccapReleases = "CCAP Releases" at "http://repo.wicourts.gov/artifactory/libs-release-local"
-  val ccapSnapshots = "CCAP Snapshots" at "http://repo.wicourts.gov/artifactory/libs-snapshot-local"
+  val ccapRepo = "CCAP Repository" at "http://repoman.wicourts.gov/artifactory/scala"
+  val ccapReleases = "CCAP Releases" at "http://repoman.wicourts.gov/artifactory/libs-release-local"
+  val ccapSnapshots = "CCAP Snapshots" at "http://repoman.wicourts.gov/artifactory/libs-snapshot-local"
 }
 
 object SquerylBuild extends Build {
@@ -16,7 +16,7 @@ object SquerylBuild extends Build {
     settings = Project.defaultSettings /* ++ lsSettings */ ++ Seq(
       description := "A Scala ORM and DSL for talking with Databases using minimum verbosity and maximum type safety",
       organization := "gov.wicourts.org.squeryl",
-      version := "0.9.6-ccap27",
+      version := "0.9.6-ccap28",
       javacOptions := Seq("-source", "1.6", "-target", "1.6"),
       /*
   	  version <<= version { v => //only release *if* -Drelease=true is passed to JVM
@@ -36,8 +36,8 @@ object SquerylBuild extends Build {
       */
       parallelExecution := false,
       publishMavenStyle := true,
-      scalaVersion := "2.11.2",
-      crossScalaVersions := Seq("2.11.2", "2.10.3"),
+      scalaVersion := "2.12.2",
+      crossScalaVersions := Seq("2.12.2", "2.11.2", "2.10.3"),
       scalacOptions <++= scalaVersion map { sv =>
         Seq("-unchecked", "-deprecation") ++ (
           if(sv.startsWith("2.11"))
@@ -94,18 +94,10 @@ object SquerylBuild extends Build {
         "postgresql" % "postgresql" % "8.4-701.jdbc4" % "provided",
         "net.sourceforge.jtds" % "jtds" % "1.2.4" % "provided",
         "org.apache.derby" % "derby" % "10.7.1.1" % "provided",
-        "junit" % "junit" % "4.8.2" % "provided"
-      ),
-      libraryDependencies <++= scalaVersion { sv =>
-        Seq("org.scala-lang" % "scalap" % sv,
-          sv match {
-            case sv if sv startsWith "2.11" =>
-              "org.scalatest" %% "scalatest" % "2.1.3" % "test"
-            case sv if sv startsWith "2.10" =>
-              "org.scalatest" %% "scalatest" % "2.1.3" % "test"
-            case _ =>
-              "org.scalatest" % "scalatest_2.9.2" % "2.0.M6-SNAP3" % "test"
-          }
-        )
-      }))
+        "junit" % "junit" % "4.8.2" % "provided",
+        "org.scalatest" %% "scalatest" % "3.0.3" % "test",
+        "org.scala-lang" % "scalap" % "2.12.2"
+      )
+    )
+  )
 }
