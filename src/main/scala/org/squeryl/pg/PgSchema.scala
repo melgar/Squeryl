@@ -4,6 +4,7 @@ import org.squeryl._
 import org.squeryl.adapters.PostgreSqlAdapter
 import internals.{StatementWriter, FieldMapper}
 import dsl.ast.{ViewExpressionNode, ExpressionNode}
+import scala.reflect.runtime.universe._
 
 class PgSchema(implicit fieldMapper: FieldMapper)
     extends Schema()(fieldMapper) {
@@ -23,7 +24,7 @@ class PgSchema(implicit fieldMapper: FieldMapper)
   }
 }
 
-class SrfView[T](
+class SrfView[T: TypeTag](
     name: String,
     classOfT: Class[T],
     schema: Schema,

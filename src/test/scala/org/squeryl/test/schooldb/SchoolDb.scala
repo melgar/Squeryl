@@ -30,6 +30,7 @@ import collection.mutable.ArrayBuffer
 import org.squeryl.internals.StatementWriter
 import org.squeryl.dsl.ast.ExpressionNode
 
+import scalaz.{@@, Tag}
 
 
 object AppSpecificTypeMode extends org.squeryl.PrimitiveTypeMode {
@@ -156,6 +157,17 @@ case class SqlDate(val id:Long, val aDate: java.sql.Date) extends KeyedEntity[Lo
 
 }
 
+object Domains {
+  sealed trait MyLongT
+  val MyLong = Tag.of[MyLongT]
+  type MyLong = Long @@ MyLongT
+}
+
+case class WrappedType(id: Long, myLong: Domains.MyLong, myOptLong: Option[Domains.MyLong]) {
+  def xxx: Nothing = ???
+  def xyz: Option[Nothing] = ???
+}
+
 case class YieldInspectionTest(id:Int, num:Int) extends KeyedEntity[Int]
 
 case class YieldInspectionAnother(id:Int, name:String, testId:Int) extends KeyedEntity[Int]
@@ -226,7 +238,9 @@ class SchoolDb extends Schema {
   val others = table[YieldInspectionAnother]
 
   val sqlDates = table[SqlDate]
-  
+
+  val wrappedTypes = table[WrappedType]
+
 // uncomment to test : when http://www.assembla.com/spaces/squeryl/tickets/14-assertion-fails-on-self-referring-onetomanyrelationship
 //  an unverted constraint gets created, unless expr. is inverted : child.parentSchoolId === parent.id
 //  val schoolHierarchy =
@@ -1768,6 +1782,21 @@ abstract class SchoolDbTestRun extends SchoolDbTestBase {
         select(g.measures.get, o)
         on(g.key === o.testId)
         ).toList
+  }
+
+  test("WrappedTypes") {
+    val testInstance = sharedTestInstance; import testInstance._; import Domains._
+
+    wrappedTypes.insert(WrappedType(0, MyLong(1), Some(MyLong(2))))
+
+    val q = from(wrappedTypes)(w =>
+      where(w.myLong === 1 and w.myOptLong === 2)
+      select(w)
+    ).toList
+
+    assert(q.length == 1)
+    assert(MyLong.unwrap(q.head.myLong) == 1)
+    assert(MyLong.unsubst(q.head.myOptLong) == Some(2))
   }
 
   test("Exists")  {

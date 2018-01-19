@@ -16,7 +16,7 @@ object SquerylBuild extends Build {
     settings = Project.defaultSettings /* ++ lsSettings */ ++ Seq(
       description := "A Scala ORM and DSL for talking with Databases using minimum verbosity and maximum type safety",
       organization := "gov.wicourts.org.squeryl",
-      version := "0.9.6-ccap31",
+      version := "0.9.6-ccap33",
       javacOptions := Seq("-source", "1.6", "-target", "1.6"),
       /*
   	  version <<= version { v => //only release *if* -Drelease=true is passed to JVM
@@ -37,7 +37,7 @@ object SquerylBuild extends Build {
       parallelExecution := false,
       publishMavenStyle := true,
       scalaVersion := "2.12.2",
-      crossScalaVersions := Seq("2.12.2", "2.11.2", "2.10.3"),
+//      crossScalaVersions := Seq("2.12.2", "2.11.2"),
       scalacOptions <++= scalaVersion map { sv =>
         Seq("-unchecked", "-deprecation") ++ (
           if(sv.startsWith("2.11"))
@@ -96,7 +96,9 @@ object SquerylBuild extends Build {
         "org.apache.derby" % "derby" % "10.7.1.1" % "provided",
         "junit" % "junit" % "4.8.2" % "provided",
         "org.scalatest" %% "scalatest" % "3.0.3" % "test",
-        "org.scala-lang" % "scalap" % "2.12.2"
+        "org.scala-lang" % "scala-reflect" % "2.12.2",
+        "org.scala-lang.modules" %% "scala-xml" % "1.0.5",
+        "org.scalaz" %% "scalaz-core" % "7.2.18"
       )
     )
   )
