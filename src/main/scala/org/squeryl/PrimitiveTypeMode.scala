@@ -25,15 +25,41 @@ import java.sql.ResultSet
 import org.squeryl.internals.Utils
 import org.squeryl.internals.FieldMapper
 
+import scalaz.{@@, NotNothing}
+
 @deprecated("the PrimitiveTypeMode companion object is deprecated, you should define a mix in the trait for your application. See : http://squeryl.org/0.9.6.html",
     "0.9.6")
 object PrimitiveTypeMode extends PrimitiveTypeMode
 
 private [squeryl] object InternalFieldMapper extends PrimitiveTypeMode
 
-trait PrimitiveTypeMode extends QueryDsl with FieldMapper {
-    
-  
+trait PrimitiveTypeMode1 {
+  implicit def wrappedTEF[A, Q: NotNothing, T](implicit factory: TypedExpressionFactory[A, T]): TypedExpressionFactory[A @@ Q, T] =
+    factory.asInstanceOf[TypedExpressionFactory[A @@ Q, T]]
+
+  implicit def wrappedToTE[A, Q, T](
+    a: A @@ Q
+  )(
+    implicit factory: TypedExpressionFactory[A @@ Q, T]
+  ): TypedExpression[A @@ Q, T] =
+    factory.create(a)
+}
+
+trait PrimitiveTypeMode0 extends PrimitiveTypeMode1 {
+  implicit def optionWrappedTEF[A, Q: NotNothing, T](
+    implicit factory: TypedExpressionFactory[Option[A], T]
+  ): TypedExpressionFactory[Option[A @@ Q], T] =
+    factory.asInstanceOf[TypedExpressionFactory[Option[A @@ Q], T]]
+
+  implicit def optionWrappedToTE[A, Q, T](
+    a: Option[A @@ Q]
+  )(
+    implicit factory: TypedExpressionFactory[Option[A @@ Q], T]
+  ): TypedExpression[Option[A @@ Q], T] =
+    factory.create(a)
+}
+
+trait PrimitiveTypeMode extends QueryDsl with FieldMapper with PrimitiveTypeMode0 {
   // =========================== Non Numerical =========================== 
   implicit val stringTEF = PrimitiveTypeSupport.stringTEF
   implicit val optionStringTEF = PrimitiveTypeSupport.optionStringTEF

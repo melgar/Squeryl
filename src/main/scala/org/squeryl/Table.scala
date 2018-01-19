@@ -23,10 +23,11 @@ import org.squeryl.logging.{StackMarker, StatementInvocationEvent}
 import scala.reflect.Manifest
 import collection.mutable.ArrayBuffer
 import javax.swing.UIDefaults.LazyValue
+import scala.reflect.runtime.universe._
 
 //private [squeryl] object DummySchema extends Schema
 
-class Table[T] private [squeryl] (n: String, c: Class[T], val schema: Schema, _prefix: Option[String], ked: Option[KeyedEntityDef[T,_]]) extends View[T](n, c, schema, _prefix, ked) {
+class Table[T: TypeTag] private [squeryl] (n: String, c: Class[T], val schema: Schema, _prefix: Option[String], ked: Option[KeyedEntityDef[T,_]]) extends View[T](n, c, schema, _prefix, ked) {
 
   private def _dbAdapter = Session.currentSession.databaseAdapter
 

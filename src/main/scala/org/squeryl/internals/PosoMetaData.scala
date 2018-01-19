@@ -24,8 +24,11 @@ import collection.mutable.{HashSet, ArrayBuffer}
 import org.squeryl.annotations._
 import org.squeryl._
 import dsl.CompositeKey
+import scala.reflect.runtime._
 
-class PosoMetaData[T](val clasz: Class[T], val schema: Schema, val viewOrTable: View[T]) {
+class PosoMetaData[T: universe.TypeTag](val clasz: Class[T], val schema: Schema, val viewOrTable: View[T]) {
+
+  private val scalaTpe: universe.Type = universe.typeOf[T]
 
   override def toString =
     'PosoMetaData + "[" + clasz.getSimpleName + "]" + fieldsMetaData.mkString("(",",",")")
@@ -49,7 +52,6 @@ class PosoMetaData[T](val clasz: Class[T], val schema: Schema, val viewOrTable: 
    * @arg primaryKey None if this Poso is not a KeyedEntity[], Either[a persistedField, a composite key]  
    */
   val (_fieldsMetaData, primaryKey): (Iterable[FieldMetaData], Option[Either[FieldMetaData,Method]]) = {
-
     val isImplicitMode = _isImplicitMode
 
     val setters = new ArrayBuffer[Method]
@@ -99,20 +101,28 @@ class PosoMetaData[T](val clasz: Class[T], val schema: Schema, val viewOrTable: 
       val o = classOf[java.lang.Object]
 
       val field =
-        members.filter(m => m.isInstanceOf[Field]).
-           map(m=> m.asInstanceOf[Field]).filter(f=> f.getType != o).headOption
+        members
+          .collect { case f: Field => (f, effectiveFieldType(f)) }
+          .filter { case (_, t) => t != o }
+          .headOption
 
       val getter =
-        members.filter(m => m.isInstanceOf[Method] && m.getName == name).
-          map(m=> m.asInstanceOf[Method]).filter(m=> m.getReturnType != o).headOption
+        members
+          .collect { case m: Method if m.getName == name => (m, effectiveMethodType(m)) }
+          .filter { case (_, t) => t != o }
+          .headOption
 
       val setter =
-        members.filter(m => m.isInstanceOf[Method] && m.getName.endsWith("_$eq")).
-          map(m=> m.asInstanceOf[Method]).filter(m=> m.getParameterTypes.apply(0) != o).headOption
+        members
+          .collect { case m: Method if m.getName.endsWith("_$eq") => (m, effectiveMethodType(m)) }
+          .filter { case (_, t) => t != o }
+          .headOption
 
       val property = (field, getter, setter, a)
 
-      if(isImplicitMode && _groupOfMembersIsProperty(property)) {
+      val groupProperty = (field.map(_._1), getter.map(_._1), setter.map(_._1), a)
+
+      if(isImplicitMode && _groupOfMembersIsProperty(groupProperty)) {
         val isOptimisitcCounter =
           (for(k <- viewOrTable.ked; 
               counterProp <- k.optimisticCounterPropertyName if counterProp == name) yield true).isDefined
@@ -205,10 +215,28 @@ class PosoMetaData[T](val clasz: Class[T], val schema: Schema, val viewOrTable: 
         org.squeryl.internals.Utils.throwError("inner classes are not supported, except when outer class is a singleton (object)\ninner class is : " + cn)
     }
 
-    var res = new Array[Object](params.size)
+    def paramListsCompatible(javaParams: List[Class[_]], scalaParams: List[universe.Symbol]): Boolean =
+      javaParams.zip(scalaParams).forall { case (cls, param) =>
+        cls.isAssignableFrom(runtimeClass(param.typeSignature.erasure))
+      }
+
+    val scalaConstructorParams = scalaTpe.decls
+      .filter(_.isConstructor)
+      .map(_.asTerm.typeSignature)
+      .find(x => x.paramLists.length == 1 &&
+        x.paramLists(0).length == params.length &&
+        paramListsCompatible(params.toList, x.paramLists(0))
+      )
+      .getOrElse(Utils.throwError("Could not find Scala constructor corresponding to Java one"))
+      .paramLists(0)
+      .toVector
+
+    val res = new Array[Object](params.size)
 
     for(i <- 0 to params.length -1) {
-      val v = FieldMetaData.createDefaultValue(schema.fieldMapper, c, params(i), None, None)
+      val cl = findTaggedType(scalaConstructorParams(i).typeSignature).map(runtimeClass).getOrElse(params(i))
+      val isOption = scalaConstructorParams(i).typeSignature.typeSymbol == universe.typeOf[Option[_]].typeSymbol
+      val v = FieldMetaData.createDefaultValue(schema.fieldMapper, c, isOption, cl, None)
       res(i) = v
     }
 
@@ -314,16 +342,91 @@ class PosoMetaData[T](val clasz: Class[T], val schema: Schema, val viewOrTable: 
     schema.fieldMapper.isSupported(c)
       //! classOf[Query[_]].isAssignableFrom(c)
 
-  private def _fillWithMembers(clasz: Class[_], members: ArrayBuffer[(Member,HashSet[Annotation])]) {
+  /**
+    * Finds the Scala type of a field, getter, or setter (as used by Squeryl).
+    */
+  private def effectiveType(name: String, tpe: universe.Type): Option[universe.Type] = {
+    val decoded = universe.TermName(name).decodedName
+    val symbol = tpe.member(decoded)
+    if (symbol.isTerm) {
+      val term = symbol.asTerm
+      if (term.isMethod) {
+        val method = term.asMethod
+        if (method.paramLists.isEmpty)
+          Some(method.returnType)
+        else if (method.returnType =:= universe.typeOf[Unit] &&
+          method.paramLists.lengthCompare(1) == 0 &&
+          method.paramLists(0).lengthCompare(1) == 0)
+          Some(method.paramLists(0)(0).typeSignature)
+        else None
+      } else None
+    } else None
+  }
 
-    for(m <-clasz.getMethods if(m.getDeclaringClass != classOf[Object]) && _includeFieldOrMethodType(m.getReturnType)) {
+  /**
+    * Finds the underlying type for a tagged type or an Option containing
+    * a tagged type (e.g. Int in Int @@ MyInt or Option[Int @@ MyInt]).
+    * The @@ type alias cannot be relied upon as it may have been re-aliased.
+    * The de-aliased AnyRef refinement with its two type declarations is treated
+    * as a sufficient clue that it's a tagged type. For non-tagged types, the
+    * type inside the Option is returned, otherwise None. (The reason for this
+    * quirk is that some generated case class methods return types that don't
+    * have a corresponding Java class.)
+    */
+  private def findTaggedType(tpe: universe.Type): Option[universe.Type] =
+    if (tpe.typeSymbol == universe.typeOf[Option[_]].typeSymbol)
+      unpackTypeFromTag(tpe.typeArgs.head).orElse(Some(tpe.typeArgs.head))
+    else
+      unpackTypeFromTag(tpe)
+
+  private def unpackTypeFromTag(tpe: universe.Type): Option[universe.Type] =
+    if (tpe.erasure =:= universe.typeOf[Object]) {
+      val dealiased = tpe.dealias
+      if (dealiased.decls.toList.length == 2 &&
+        dealiased.decl(universe.TypeName("Tag")) != universe.NoSymbol)
+        Some(dealiased.decl(universe.TypeName("Self")))
+          .filterNot(_ == universe.NoSymbol)
+          .map(_.asType.typeSignature)
+      else
+        None
+    } else
+      None
+
+  private def runtimeClass(tpe: universe.Type): Class[_] = {
+    val mirror = universe.runtimeMirror(getClass.getClassLoader)
+    mirror.runtimeClass(tpe)
+  }
+
+  private def taggedClass(name: String, tpe: universe.Type): Option[Class[_]] =
+    effectiveType(name, scalaTpe).flatMap(findTaggedType).map(runtimeClass)
+
+  private def effectiveMethodType(method: Method): Class[_] =
+    taggedClass(method.getName, scalaTpe).getOrElse(method.getReturnType)
+
+  private def effectiveFieldType(field: Field): Class[_] =
+    taggedClass(field.getName, scalaTpe).getOrElse(field.getType)
+
+  private def _fillWithMembers(clasz: Class[_], members: ArrayBuffer[(Member,HashSet[Annotation])]) {
+    def includeMethod(m: Method): Boolean =
+      if (m.getDeclaringClass == classOf[Object])
+        false
+      else
+        _includeFieldOrMethodType(effectiveMethodType(m))
+
+    def includeField(f: Field): Boolean =
+      if (f.getName.indexOf("$") != -1)
+        false
+      else
+        _includeFieldOrMethodType(effectiveFieldType(f))
+
+    for(m <-clasz.getMethods if includeMethod(m)) {
       m.setAccessible(true)
       val t = (m, new HashSet[Annotation])
       _addAnnotations(m, t._2)
       members.append(t)
     }
 
-    for(m <- clasz.getDeclaredFields if (m.getName.indexOf("$") == -1) && _includeFieldOrMethodType(m.getType)) {
+    for(m <- clasz.getDeclaredFields if includeField(m)) {
       m.setAccessible(true)
       val t = (m, new HashSet[Annotation])
       _addAnnotations(m, t._2)

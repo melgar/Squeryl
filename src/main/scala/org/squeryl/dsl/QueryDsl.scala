@@ -23,6 +23,7 @@ import org.squeryl._
 import java.sql.{SQLException, ResultSet}
 import collection.mutable.ArrayBuffer
 import scala.util.control.ControlThrowable
+import scala.reflect.runtime.universe._
 
 
 trait BaseQueryDsl {
@@ -389,7 +390,7 @@ trait QueryDsl
 
   private def invalidBindingExpression = Utils.throwError("Binding expression of relation uses a def, not a field (val or var)")
   
-  class ManyToManyRelationImpl[L, R, A](
+  class ManyToManyRelationImpl[L, R, A: TypeTag](
       val leftTable: Table[L], 
       val rightTable: Table[R], 
       aClass: Class[A], 
