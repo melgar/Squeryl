@@ -217,7 +217,7 @@ class PosoMetaData[T: universe.TypeTag](val clasz: Class[T], val schema: Schema,
 
     def paramListsCompatible(javaParams: List[Class[_]], scalaParams: List[universe.Symbol]): Boolean =
       javaParams.zip(scalaParams).forall { case (cls, param) =>
-        cls.isAssignableFrom(runtimeClass(param.typeSignature.erasure))
+        runtimeClass(param.typeSignature.erasure).exists(cls.isAssignableFrom)
       }
 
     val scalaConstructorParams = scalaTpe.decls
@@ -234,7 +234,7 @@ class PosoMetaData[T: universe.TypeTag](val clasz: Class[T], val schema: Schema,
     val res = new Array[Object](params.size)
 
     for(i <- 0 to params.length -1) {
-      val cl = findTaggedType(scalaConstructorParams(i).typeSignature).map(runtimeClass).getOrElse(params(i))
+      val cl = findTaggedType(scalaConstructorParams(i).typeSignature).flatMap(runtimeClass).getOrElse(params(i))
       val isOption = scalaConstructorParams(i).typeSignature.typeSymbol == universe.typeOf[Option[_]].typeSymbol
       val v = FieldMetaData.createDefaultValue(schema.fieldMapper, c, isOption, cl, None)
       res(i) = v
@@ -392,13 +392,17 @@ class PosoMetaData[T: universe.TypeTag](val clasz: Class[T], val schema: Schema,
     } else
       None
 
-  private def runtimeClass(tpe: universe.Type): Class[_] = {
+  private def runtimeClass(tpe: universe.Type): Option[Class[_]] = {
     val mirror = universe.runtimeMirror(getClass.getClassLoader)
-    mirror.runtimeClass(tpe)
+    try Some(mirror.runtimeClass(tpe))
+    catch {
+      // Thrown if the Scala type does not have a corresponding Java class
+      case _: ClassNotFoundException => None
+    }
   }
 
   private def taggedClass(name: String, tpe: universe.Type): Option[Class[_]] =
-    effectiveType(name, scalaTpe).flatMap(findTaggedType).map(runtimeClass)
+    effectiveType(name, scalaTpe).flatMap(findTaggedType).flatMap(runtimeClass)
 
   private def effectiveMethodType(method: Method): Class[_] =
     taggedClass(method.getName, scalaTpe).getOrElse(method.getReturnType)

@@ -163,7 +163,10 @@ object Domains {
   type MyLong = Long @@ MyLongT
 }
 
-case class WrappedType(id: Long, myLong: Domains.MyLong, myOptLong: Option[Domains.MyLong])
+case class WrappedType(id: Long, myLong: Domains.MyLong, myOptLong: Option[Domains.MyLong]) {
+  def xxx: Nothing = ???
+  def xyz: Option[Nothing] = ???
+}
 
 case class YieldInspectionTest(id:Int, num:Int) extends KeyedEntity[Int]
 
