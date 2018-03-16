@@ -1790,7 +1790,7 @@ abstract class SchoolDbTestRun extends SchoolDbTestBase {
     wrappedTypes.insert(WrappedType(0, MyLong(1), Some(MyLong(2))))
 
     val q = from(wrappedTypes)(w =>
-      where(w.myLong === 1 and w.myOptLong === 2)
+      where(w.myLong === MyLong(1L) and w.myOptLong === Some(MyLong(2L)))
       select(w)
     ).toList
 

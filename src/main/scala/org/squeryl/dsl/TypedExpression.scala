@@ -84,7 +84,6 @@ sealed trait TOptionUUID
 @scala.annotation.implicitNotFound("The left side of the comparison (===, <>, between, ...) is not compatible with the right side.")
 sealed class CanCompare[-A1,-A2]
 
-
 trait TypedExpression[A1,T1] extends ExpressionNode {
   outer =>
     
