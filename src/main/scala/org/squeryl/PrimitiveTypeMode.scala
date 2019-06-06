@@ -33,31 +33,24 @@ object PrimitiveTypeMode extends PrimitiveTypeMode
 
 private [squeryl] object InternalFieldMapper extends PrimitiveTypeMode
 
-trait PrimitiveTypeMode extends QueryDsl with FieldMapper {
+trait PrimitiveTypeMode extends TypedExpressionValues with QueryDsl with FieldMapper with TypedExpressionFactoryValues
+
+trait TypedExpressionFactoryValues {
+  private object mapper extends FieldMapper {
+    val pts = PrimitiveTypeSupport
+  }
+  import mapper.{pts => PrimitiveTypeSupport, _}
+
   private def subst2[A, B, F[_, _], T](fab: F[A, B]): F[A @@ T, B @@ T] =
     fab.asInstanceOf[F[A @@ T, B @@ T]]
 
   def taggedTEF[A, Q: NotNothing, T](implicit factory: TypedExpressionFactory[A, T]): TypedExpressionFactory[A @@ Q, T @@ Q] =
     subst2[A, T, TypedExpressionFactory, Q](factory)
 
-  def taggedToTE[A, Q, T](
-    a: A @@ Q
-  )(
-    implicit factory: TypedExpressionFactory[A @@ Q, T @@ Q]
-  ): TypedExpression[A @@ Q, T @@ Q] =
-    factory.create(a)
-
   def taggedOptionTEF[A, Q: NotNothing, T](
     implicit factory: TypedExpressionFactory[Option[A], T]
   ): TypedExpressionFactory[Option[A @@ Q], T @@ Q] =
     subst2[A, T, ({ type L[a, b] = TypedExpressionFactory[Option[a], b] })#L, Q](factory)
-
-  def taggedOptionToTE[A, Q, T](
-    a: Option[A @@ Q]
-  )(
-    implicit factory: TypedExpressionFactory[Option[A @@ Q], T @@ Q]
-  ): TypedExpression[Option[A @@ Q], T @@ Q] =
-    factory.create(a)
 
   // =========================== Non Numerical ===========================
   implicit val stringTEF = PrimitiveTypeSupport.stringTEF
@@ -72,23 +65,47 @@ trait PrimitiveTypeMode extends QueryDsl with FieldMapper {
   implicit val intArrayTEF = PrimitiveTypeSupport.intArrayTEF
   implicit val longArrayTEF = PrimitiveTypeSupport.longArrayTEF
   implicit val stringArrayTEF = PrimitiveTypeSupport.stringArrayTEF
-  
-  // =========================== Numerical Integral =========================== 
+
+  // =========================== Numerical Integral ===========================
   implicit val byteTEF = PrimitiveTypeSupport.byteTEF
   implicit val optionByteTEF = PrimitiveTypeSupport.optionByteTEF
   implicit val intTEF = PrimitiveTypeSupport.intTEF
   implicit val optionIntTEF = PrimitiveTypeSupport.optionIntTEF
   implicit val longTEF = PrimitiveTypeSupport.longTEF
   implicit val optionLongTEF = PrimitiveTypeSupport.optionLongTEF
-  
-  // =========================== Numerical Floating Point ===========================   
+
+  // =========================== Numerical Floating Point ===========================
   implicit val floatTEF = PrimitiveTypeSupport.floatTEF
   implicit val optionFloatTEF = PrimitiveTypeSupport.optionFloatTEF
   implicit val doubleTEF = PrimitiveTypeSupport.doubleTEF
-  implicit val optionDoubleTEF = PrimitiveTypeSupport.optionDoubleTEF  
+  implicit val optionDoubleTEF = PrimitiveTypeSupport.optionDoubleTEF
   implicit val bigDecimalTEF = PrimitiveTypeSupport.bigDecimalTEF
   implicit val optionBigDecimalTEF = PrimitiveTypeSupport.optionBigDecimalTEF
-  
+}
+
+trait TypedExpressionValues {
+  private object mapper extends FieldMapper {
+    val pts = PrimitiveTypeSupport
+  }
+  import mapper.{pts => PrimitiveTypeSupport, _}
+  import TypedExpressionFactory._
+
+  private def subst2[A, B, F[_, _], T](fab: F[A, B]): F[A @@ T, B @@ T] =
+    fab.asInstanceOf[F[A @@ T, B @@ T]]
+
+  def taggedToTE[A, Q, T](
+    a: A @@ Q
+  )(
+    implicit factory: TypedExpressionFactory[A @@ Q, T @@ Q]
+  ): TypedExpression[A @@ Q, T @@ Q] =
+    factory.create(a)
+
+  def taggedOptionToTE[A, Q, T](
+    a: Option[A @@ Q]
+  )(
+    implicit factory: TypedExpressionFactory[Option[A @@ Q], T @@ Q]
+  ): TypedExpression[Option[A @@ Q], T @@ Q] =
+    factory.create(a)
   
   implicit def stringToTE(s: String) = stringTEF.create(s)  
   implicit def optionStringToTE(s: Option[String]) = optionStringTEF.create(s)

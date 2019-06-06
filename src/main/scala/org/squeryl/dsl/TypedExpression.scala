@@ -23,6 +23,8 @@ import org.squeryl.internals.AttributeValidOnNumericalColumn
 import org.squeryl.Query
 import java.util.Date
 import java.sql.ResultSet
+import org.squeryl.TypedExpressionFactoryValues
+import org.squeryl.TypedExpressionValues
 import org.squeryl.internals.Utils
 
 sealed trait TNumeric
@@ -233,6 +235,7 @@ trait TypedExpression[A1,T1] extends ExpressionNode {
   }
 }
 
+object TypedExpression extends TypedExpressionValues
 
 class TypedExpressionConversion[A1,T1](val e: ExpressionNode, bf: TypedExpressionFactory[A1,T1]) extends TypedExpression[A1,T1] {
   
@@ -334,6 +337,8 @@ trait TypedExpressionFactory[A,T] {
     def sample:A = zis.sample
   }  
 }
+
+object TypedExpressionFactory extends TypedExpressionFactoryValues
 
 trait IntegralTypedExpressionFactory[A1,T1,A2,T2] 
   extends TypedExpressionFactory[A1,T1] with Floatifier[T1,A2,T2] {
