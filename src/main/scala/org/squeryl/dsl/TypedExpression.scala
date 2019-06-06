@@ -23,6 +23,8 @@ import org.squeryl.internals.AttributeValidOnNumericalColumn
 import org.squeryl.Query
 import java.util.Date
 import java.sql.ResultSet
+import org.squeryl.TypedExpressionFactoryValues
+import org.squeryl.TypedExpressionValues
 import org.squeryl.internals.Utils
 
 sealed trait TNumeric
@@ -84,7 +86,6 @@ sealed trait TOptionUUID
 @scala.annotation.implicitNotFound("The left side of the comparison (===, <>, between, ...) is not compatible with the right side.")
 sealed class CanCompare[-A1,-A2]
 
-
 trait TypedExpression[A1,T1] extends ExpressionNode {
   outer =>
     
@@ -132,7 +133,7 @@ trait TypedExpression[A1,T1] extends ExpressionNode {
     new BinaryOperatorNodeLogicalBoolean(this, q.copy(false, Nil).ast, "=")
 
   def <>[A2,T2](q: Query[Measures[A2]])(implicit tef: TypedExpressionFactory[A2,T2], ev: CanCompare[T1, T2]) = 
-    new BinaryOperatorNodeLogicalBoolean(this, q.copy(false, Nil).ast, "=")
+    new BinaryOperatorNodeLogicalBoolean(this, q.copy(false, Nil).ast, "<>")
   
   def gt[A2,T2](b: TypedExpression[A2,T2])(implicit ev: CanCompare[T1, T2]) = new BinaryOperatorNodeLogicalBoolean(this, b, ">")
   def lt[A2,T2](b: TypedExpression[A2,T2])(implicit ev: CanCompare[T1, T2]) = new BinaryOperatorNodeLogicalBoolean(this, b, "<")
@@ -234,6 +235,7 @@ trait TypedExpression[A1,T1] extends ExpressionNode {
   }
 }
 
+object TypedExpression extends TypedExpressionValues
 
 class TypedExpressionConversion[A1,T1](val e: ExpressionNode, bf: TypedExpressionFactory[A1,T1]) extends TypedExpression[A1,T1] {
   
@@ -335,6 +337,8 @@ trait TypedExpressionFactory[A,T] {
     def sample:A = zis.sample
   }  
 }
+
+object TypedExpressionFactory extends TypedExpressionFactoryValues
 
 trait IntegralTypedExpressionFactory[A1,T1,A2,T2] 
   extends TypedExpressionFactory[A1,T1] with Floatifier[T1,A2,T2] {

@@ -19,12 +19,13 @@ import dsl.ast.ViewExpressionNode
 import dsl.{TypedExpression, QueryDsl}
 import internals._
 import java.sql.ResultSet
+import scala.reflect.runtime.universe._
 
 /**
  * This class can be used for read only tables or (database) views
  * for an updatable view, or table use Table[T] 
  */
-class View[T] private [squeryl](_name: String, private[squeryl] val classOfT: Class[T], schema: Schema, _prefix: Option[String], val ked: Option[KeyedEntityDef[T,_]]) extends Queryable[T] {
+class View[T: TypeTag] private [squeryl](_name: String, private[squeryl] val classOfT: Class[T], schema: Schema, _prefix: Option[String], val ked: Option[KeyedEntityDef[T,_]]) extends Queryable[T] {
 
 
 //2.9.x approach for LyfeCycle events :
